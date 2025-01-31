@@ -9,6 +9,9 @@ use DataAccess\clsMovieDataAccessLayer;
 
 // }
 
+//use BusinessLayer\clsUser;
+use BusinessLayer\mode;
+
 class clsMovie
 {
     public $mode;

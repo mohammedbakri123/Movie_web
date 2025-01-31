@@ -3,11 +3,8 @@ namespace BusinessLayer;
 require_once __DIR__ . '/../../autoload.php';
 use DataAccess\clsUserDataAccessLayer;
 
-enum mode: int
-{
-    case Edit = 2;
-    case addNew = 1;
-}
+
+use BusinessLayer\mode;
 class clsUser
 {
     public $mode;

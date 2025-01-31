@@ -5,7 +5,7 @@ use BusinessLayer\clsMovie;
 
 function encryptParam($value)
 {
-    $key = 'your-256-bit-secret'; // Replace with a secure key
+    $key = 'Mohammed'; // Replace with a secure key
     $cipher = 'aes-256-cbc';
     $ivlen = openssl_cipher_iv_length($cipher);
     $iv = openssl_random_pseudo_bytes($ivlen);
@@ -15,7 +15,7 @@ function encryptParam($value)
 
 function decryptParam($value)
 {
-    $key = 'your-256-bit-secret';
+    $key = 'Mohammed';
     $cipher = 'aes-256-cbc';
     $decoded = base64_decode($value);
     $ivlen = openssl_cipher_iv_length($cipher);
@@ -94,7 +94,8 @@ function decryptParam($value)
                     <div class="col-md-8">
                         <div class="panel panel-default">
                             <div class="panel-heading">
-                                <i class="fa fa-plus-circle"></i> Add New Movie
+                                <i class="fa fa-plus-circle"></i>
+                                <?php echo (isset($action) && $action === 'edit') ? 'Edit' : 'Add New'; ?> Movie
                             </div>
                             <div class="panel-body">
                                 <div class="row">
@@ -102,12 +103,15 @@ function decryptParam($value)
                                         <?php
                                         $action = isset($_GET['action']) ? $_GET['action'] : '';
                                         $encryptedMovieID = isset($_GET['MovieID']) ? $_GET['MovieID'] : '';
-                                        $MovieID = $encryptedMovieID ? decryptParam($encryptedMovieID) : '';
+
+                                        $MovieID = isset($encryptedMovieID) ? decryptParam($encryptedMovieID) : '';
+
 
                                         // Handle GET actions (Edit/Delete)
                                         if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                                             switch ($action) {
                                                 case 'edit':
+
                                                     $movie = clsMovie::getMovieById($MovieID);
                                                     break;
                                                 case 'delete':
@@ -121,12 +125,83 @@ function decryptParam($value)
 
                                         // Handle POST submissions (Add/Edit)
                                         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                                            $name = $_POST['Name'];
-                                            $length = $_POST['Length'];
-                                            $year = $_POST['Year'];
-                                            $category = $_POST['Catagory'];
-                                            $status = $_POST['MovieStatus'];
+                                            $AddingErrors = array();
+                                            $uploadErrors = array();
+
+                                            // Text field validations
+                                            $name = isset($_POST['Name']) ? $_POST['Name'] : '';
+                                            if (empty($name)) {
+                                                $AddingErrors['emptyName'] = 'Name is required.';
+                                            }
+
+                                            $length = isset($_POST['Length']) ? $_POST['Length'] : '';
+                                            if (empty($length) || ($length < 0 || $length > 400)) {
+                                                $AddingErrors['InVailedLength'] = 'Length is Invalid.';
+                                            }
+
+                                            $year = isset($_POST['Year']) ? $_POST['Year'] : '';
+                                            if (empty($year) || ($year < 1900 || $year > 2100)) {
+                                                $AddingErrors['InVailedYear'] = 'Year is Invalid.';
+                                            }
+
+                                            $category = isset($_POST['Catagory']) ? $_POST['Catagory'] : '';
+                                            $status = isset($_POST['MovieStatus']) ? $_POST['MovieStatus'] : '';
                                             $movieID = isset($_POST['MovieID']) ? $_POST['MovieID'] : '';
+                                            // File validation and processing function
+                                            function processUpload($fileKey, $allowedTypes, $maxSize, $relativeDir, $required = true)
+                                            {
+                                                global $uploadErrors;
+
+                                                if (!isset($_FILES[$fileKey]) || $_FILES[$fileKey]['error'] === UPLOAD_ERR_NO_FILE) {
+                                                    if ($required)
+                                                        return ['error' => "$fileKey is required."];
+                                                    return ['path' => null]; // Optional file not provided
+                                                }
+
+                                                $file = $_FILES[$fileKey];
+
+                                                if ($file['error'] !== UPLOAD_ERR_OK) {
+                                                    return ['error' => "Error uploading $fileKey."];
+                                                }
+
+                                                // Validate MIME type using file info
+                                                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                                                $mime = finfo_file($finfo, $file['tmp_name']);
+                                                finfo_close($finfo);
+
+                                                if (!in_array($mime, $allowedTypes)) {
+                                                    return ['error' => "Invalid file type for $fileKey."];
+                                                }
+
+                                                if ($file['size'] > $maxSize) {
+                                                    return ['error' => "File size too large for $fileKey."];
+                                                }
+
+                                                // Define absolute and relative paths
+                                                $absoluteDir = "../" . $relativeDir; // Moves file to ../img/ or ../videos/
+                                                $dbPathDir = $relativeDir; // Saves as img/filename.jpg or videos/filename.mp4
+                                        
+                                                // Create the target directory if it doesn’t exist
+                                                if (!is_dir($absoluteDir)) {
+                                                    mkdir($absoluteDir, 0755, true);
+                                                }
+
+                                                // Generate a unique filename
+                                                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                                                $newFilename = uniqid() . '.' . $extension;
+
+                                                // Full paths
+                                                $absolutePath = $absoluteDir . $newFilename; // Where the file is actually stored
+                                                $dbPath = $dbPathDir . $newFilename; // What is stored in the DB
+                                        
+                                                // Move uploaded file
+                                                if (!move_uploaded_file($file['tmp_name'], $absolutePath)) {
+                                                    return ['error' => "Failed to move uploaded $fileKey."];
+                                                }
+
+                                                return ['path' => $dbPath]; // Return only the relative path for DB storage
+                                            }
+
 
                                             if (isset($_POST['BtnAddMovie'])) {
                                                 $newMovie = new clsMovie();
@@ -135,43 +210,172 @@ function decryptParam($value)
                                                 $newMovie->publishYear = $year;
                                                 $newMovie->Catagory = $category;
                                                 $newMovie->movieStatus = $status;
-                                                // Handle file uploads here
-                                                if ($newMovie->Save()) {
-                                                    header("Location: Movies.php");
-                                                    exit;
+
+                                                // Process Movie File (required)
+                                                $movieLocation = processUpload(
+                                                    'movieLocation',
+                                                    ['video/mp4', 'video/webm', 'video/ogg', 'video/mkv'],
+                                                    5000 * 1024 * 1024, // 500MB
+                                                    'videos/'
+                                                );
+                                                if (isset($movieLocation['error'])) {
+                                                    $uploadErrors[] = $movieLocation['error'];
+                                                } else {
+                                                    $newMovie->movieLocation = $movieLocation['path'];
+                                                }
+
+                                                // Process Poster (required)
+                                                $poster = processUpload(
+                                                    'Poster',
+                                                    ['image/jpeg', 'image/png', 'image/gif'],
+                                                    50 * 1024 * 1024, // 5MB
+                                                    'img/',
+                                                    true
+                                                );
+                                                if (isset($poster['error'])) {
+                                                    $uploadErrors[] = $poster['error'];
+                                                } else {
+                                                    $newMovie->MoviePoster = $poster['path'];
+                                                }
+
+                                                // Process Pictures (optional)
+                                                $pictures = [];
+                                                foreach (['Picture1', 'Picture2', 'Picture3'] as $pic) {
+                                                    $result = processUpload(
+                                                        $pic,
+                                                        ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'],
+                                                        50 * 1024 * 1024,
+                                                        'img/',
+                                                        true
+                                                    );
+                                                    if (isset($result['error'])) {
+                                                        $uploadErrors[] = $result['error'];
+                                                    } elseif ($result['path']) {
+                                                        $newMovie->BigPicture[] = $result['path'];
+                                                    }
+                                                }
+
+                                                if (empty($AddingErrors) && empty($uploadErrors)) {
+                                                    if ($newMovie->Save()) {
+                                                        header("Location: Movies.php");
+                                                        exit;
+                                                    }
                                                 }
                                             } elseif (isset($_POST['BtnEditMovie'])) {
-                                                $existingMovie = clsMovie::getMovieById($movieID);
+                                                $existingMovie = clsMovie::getMovieById($_POST['MovieID']);
                                                 $existingMovie->name = $name;
                                                 $existingMovie->movieLength = $length;
                                                 $existingMovie->publishYear = $year;
                                                 $existingMovie->Catagory = $category;
                                                 $existingMovie->movieStatus = $status;
-                                                // Handle file updates here
-                                                if ($existingMovie->Save()) {
-                                                    header("Location: Movies.php");
-                                                    exit;
+
+                                                // Process Movie File (optional in edit)
+                                                $movieLocation = processUpload(
+                                                    'movieLocation',
+                                                    ['video/mp4', 'video/webm', 'video/ogg'],
+                                                    2000 * 1024 * 1024,
+                                                    'videos/',
+                                                    false
+                                                );
+                                                if (isset($movieLocation['error'])) {
+                                                    $uploadErrors[] = $movieLocation['error'];
+                                                } elseif ($movieLocation['path']) {
+                                                    // Delete old movie file
+                                                    if ($existingMovie->movieLocation && file_exists($existingMovie->movieLocation)) {
+                                                        unlink($existingMovie->movieLocation);
+                                                    }
+                                                    $existingMovie->movieLocation = $movieLocation['path'];
+                                                }
+
+                                                // Process Poster (optional in edit)
+                                                $poster = processUpload(
+                                                    'Poster',
+                                                    ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'],
+                                                    50 * 1024 * 1024,
+                                                    'img/',
+                                                    true
+                                                );
+                                                if (isset($poster['error'])) {
+                                                    $uploadErrors[] = $poster['error'];
+                                                } elseif ($poster['path']) {
+                                                    // Delete old poster
+                                                    if ($existingMovie->MoviePoster && file_exists($existingMovie->MoviePoster)) {
+                                                        unlink($existingMovie->MoviePoster);
+                                                    }
+                                                    $existingMovie->MoviePoster = $poster['path'];
+                                                }
+
+                                                // Process Pictures (optional)
+                                                foreach (['Picture1', 'Picture2', 'Picture3'] as $pic) {
+                                                    $result = processUpload(
+                                                        $pic,
+                                                        ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'],
+                                                        50 * 1024 * 1024,
+                                                        'img/',
+                                                        true
+                                                    );
+                                                    if (isset($result['error'])) {
+                                                        $uploadErrors[] = $result['error'];
+                                                    } elseif ($result['path']) {
+                                                        // Delete old picture if exists
+                                                        $oldPic = $existingMovie->{$pic . 'Path'};
+                                                        if ($oldPic && file_exists($oldPic)) {
+                                                            unlink($oldPic);
+                                                        }
+                                                        $existingMovie->BigPicture[] = $result['path'];
+                                                    }
+                                                }
+
+                                                if (empty($AddingErrors) && empty($uploadErrors)) {
+                                                    if ($existingMovie->Save()) {
+                                                        header("Location: Movies.php");
+                                                        exit;
+                                                    }
                                                 }
                                             }
+
+                                            // Display errors if any
+                                            foreach ($AddingErrors as $error) {
+                                                echo "<div class='alert alert-danger'>$error</div>";
+                                            }
+                                            foreach ($uploadErrors as $error) {
+                                                echo "<div class='alert alert-danger'>$error</div>";
+                                            }
                                         }
-
-
                                         ?>
-                                        <form action="Movies.php" role="form" enctype="multipart/form-data"
-                                            method="POST">
+
+
+
+                                        <form enctype="multipart/form-data" action="<?php echo $_SERVER['PHP_SELF'] ?>"
+                                            role="form" method="POST">
+                                            <?php if (isset($action) && $action === 'edit'): ?>
+                                            <div class="form-group">
+                                                <label>Movie ID</label>
+                                                <input class="form-control" readonly type="text" name="MovieID"
+                                                    value="<?php echo $MovieID; ?>">
+                                            </div>
+                                            <?php endif; ?>
                                             <div class="form-group">
                                                 <label>Movie Name</label>
-                                                <input type="text" placeholder="Please Enter Movie Name "
-                                                    class="form-control" name="Name">
+                                                <input type="text" placeholder="Please Enter Movie Name"
+                                                    class="form-control" name="Name"
+                                                    value="<?php echo isset($movie) ? htmlspecialchars($movie->name) : ''; ?>">
                                             </div>
                                             <div class="form-group">
                                                 <label>Length in Mins</label>
-                                                <input type="text" placeholder="Please Enter a Number"
-                                                    class="form-control" name="Length">
+                                                <input type="number" placeholder="Please Enter a Number"
+                                                    class="form-control" name="Length"
+                                                    value="<?php echo isset($movie) ? htmlspecialchars($movie->movieLength) : ''; ?>">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Year</label>
+                                                <input type="number" class="form-control"
+                                                    placeholder="Please Enter Year" name="Year"
+                                                    value="<?php echo isset($movie) ? htmlspecialchars($movie->publishYear) : ''; ?>">
                                             </div>
                                             <div class="form-group">
                                                 <label>The Movie</label><br>
-                                                <input type="file" class="form-control" name="MovieFile">
+                                                <input type="file" class="form-control" name="movieLocation">
                                                 <label>Movie Poster</label><br>
                                                 <input type="file" class="form-control" name="Poster">
                                                 <label>Picture 1 </label><br>
@@ -182,27 +386,44 @@ function decryptParam($value)
                                                 <input type="file" class="form-control" name="Picture3">
 
                                             </div>
-                                            <div class="form-group">
-                                                <label>Year</label>
-                                                <input type="text" class="form-control"
-                                                    placeholder="Please Enter your Cost" name="Year">
-                                            </div>
+
                                             <div class="form-group">
                                                 <label>Movie Category</label>
                                                 <select class="form-control" name="Catagory">
-                                                    <option value="1">Category 1</option>
+                                                    <?php
+                                                    $catagoris = clsCatagory::getAllCategories();
+                                                    if (isset($catagoris)) {
+                                                        
+                                                        foreach ($catagoris as $catagory) {
+                                                            $selected = (isset($movie) && $movie->Catagory == $cat['CatID']) ? 'selected' : '';
+                                                            ?>
+
+
+                                                    <option value="<?php echo $catagory['CatagoryID'] ?>"
+                                                        <?php echo $selected ?>>
+                                                        <?php echo $catagory['CatagoryName'] ?>
+                                                    </option>
+                                                    <?php }
+                                                    } ?>
                                                 </select>
 
                                             </div>
                                             <div class="form-group">
                                                 <label>Movie Status</label>
                                                 <select class="form-control" name="MovieStatus">
-                                                    <option value="1">This Week</option>
-                                                    <option value="2">Comming Soon</option>
-                                                    <option value="3">New</option>
-                                                    <option value="4">Old</option>
+                                                    <option value="1"
+                                                        <?php echo (isset($movie) && $movie->movieStatus == 1) ? 'selected' : ''; ?>>
+                                                        This Week</option>
+                                                    <option value="2"
+                                                        <?php echo (isset($movie) && $movie->movieStatus == 2) ? 'selected' : ''; ?>>
+                                                        Coming Soon</option>
+                                                    <option value="3"
+                                                        <?php echo (isset($movie) && $movie->movieStatus == 3) ? 'selected' : ''; ?>>
+                                                        New</option>
+                                                    <option value="4"
+                                                        <?php echo (isset($movie) && $movie->movieStatus == 4) ? 'selected' : ''; ?>>
+                                                        Old</option>
                                                 </select>
-
                                             </div>
                                             <div style="float:right;">
                                                 <?php
@@ -211,21 +432,21 @@ function decryptParam($value)
                                                 
                                                     if ($action === 'edit') { // Check if the action is 'edit'
                                                         ?>
-                                                        <button type="submit" class="btn btn-success" name="BtnEditMovie">Edit
-                                                            Movie</button>
-                                                        <?php
+                                                <button type="submit" class="btn btn-success" name="BtnEditMovie">Edit
+                                                    Movie</button>
+                                                <?php
                                                     } else { // Default behavior
                                                         ?>
-                                                        <button type="submit" class="btn btn-primary" name="BtnAddMovie">Add
-                                                            Movie</button>
-                                                        <?php
+                                                <button type="submit" class="btn btn-primary" name="BtnAddMovie">Add
+                                                    Movie</button>
+                                                <?php
                                                     }
                                                 } else {
                                                     ?>
-                                                    <button type="submit" class="btn btn-primary" name="BtnAddMovie">Add
+                                                <button type="submit" class="btn btn-primary" name="BtnAddMovie">Add
 
-                                                        Movie</button>
-                                                    <?php
+                                                    Movie</button>
+                                                <?php
                                                 }
                                                 ?>
                                                 <a href="<?php echo $_SERVER['PHP_SELF'] ?>" type="reset"
@@ -243,7 +464,7 @@ function decryptParam($value)
                     <div class="col-md-12">
                         <div class="panel panel-default">
                             <div class="panel-heading">
-                                <i class="fa fa-bars"></i> Product
+                                <i class="fa fa-bars"></i> Movie
                             </div>
                             <div class="panel-body">
                                 <div class="table-responsive">
@@ -267,13 +488,13 @@ function decryptParam($value)
                                             if ($Movies) {
                                                 foreach ($Movies as $Movie) {
                                                     ?>
-                                                    <tr class="odd gradeX">
-                                                        <td><?php echo $Movie['MovieName'] ?></td>
-                                                        <td><?php echo $Movie['LengthByMin'] ?></td>
-                                                        <td><?php echo $Movie['PublishYear'] ?></td>
-                                                        <td><?php echo clsCatagory::GetCatagoryById($Movie['main_Cat_ID']) ?>
-                                                        </td>
-                                                        <td><?php
+                                            <tr class="odd gradeX">
+                                                <td><?php echo $Movie['MovieName'] ?></td>
+                                                <td><?php echo $Movie['LengthByMin'] ?></td>
+                                                <td><?php echo $Movie['PublishYear'] ?></td>
+                                                <td><?php echo clsCatagory::GetCatagoryById($Movie['main_Cat_ID']) ?>
+                                                </td>
+                                                <td><?php
                                                         if ($Movie['MovieStatus'] == 1) {
                                                             echo 'This Week';
                                                         } elseif ($Movie['MovieStatus'] == 2) {
@@ -286,14 +507,16 @@ function decryptParam($value)
                                                         }
 
                                                         ?></td>
-                                                        <td>
-                                                            <a href="<?php echo $_SERVER['PHP_SELF'] ?>?MovieID=<?php echo $Movie['MovieID']; ?>&action=edit"
-                                                                class='btn btn-success'>Edit</a>
-                                                            <a href="<?php echo $_SERVER['PHP_SELF'] ?>?MovieID=<?php echo $Movie['MovieID']; ?>&action=delete"
-                                                                class='btn btn-danger'>Delete</a>
-                                                        </td>
-                                                    </tr>
-                                                    <?php
+                                                <td>
+                                                    <a href="Movies.php?MovieID=<?php echo encryptParam($Movie['MovieID']); ?>&action=edit"
+                                                        class="btn btn-success">Edit</a>
+
+                                                    <a href="#"
+                                                        onclick="confirmDelete('<?php echo encryptParam($Movie['MovieID']); ?>')"
+                                                        class="btn btn-danger">Delete</a>
+                                                </td>
+                                            </tr>
+                                            <?php
                                                 }
                                             }
                                             ?>
@@ -311,6 +534,15 @@ function decryptParam($value)
                 <script src="assets/js/morris/raphael-2.1.0.min.js"></script>
                 <script src="assets/js/morris/morris.js"></script>
                 <script src="assets/js/custom.js"></script>
+                <script>
+                function confirmDelete(movieId) {
+                    let confirmAction = confirm("Are you sure you want to delete this movie?");
+                    if (confirmAction) {
+                        window.location.href = "Movies.php?MovieID=" + movieId + "&action=delete";
+                    }
+                }
+                </script>
+
             </div>
         </div>
     </div>

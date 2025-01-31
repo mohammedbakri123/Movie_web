@@ -54,7 +54,7 @@ class clsMovieDataAccessLayer
             if ($pdoConnection !== false) {
                 $query = "SELECT * FROM `movie` WHERE MovieID = :id";
                 $stmt = $pdoConnection->prepare($query); // Use prepare to avoid SQL injection
-                $stmt->bindParam(':name', $id, PDO::PARAM_INT);
+                $stmt->bindParam(':id', $id, PDO::PARAM_INT);
                 $stmt->execute();
                 $movie = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($movie) {
@@ -137,11 +137,10 @@ class clsMovieDataAccessLayer
         $pdoConnection = DatabaseConnection::getConnection();
         try {
             if ($pdoConnection !== false) {
-                $query = "INSERT INTO `movie`(`MovieName`, `main_Cat_ID`, `publishDate`, `MovieLocation`, `LengthByMin`, `MoviePoster`, `MovieBigPicture1`, `MovieBigPicture2`, `MovieBigPicture3`, `PublishYear` , `MovieStatus`) VALUES (:name, :Catagory, :publishDate, :movieLocation, :movieLength, :MoviePoster, :movieBigPicture1, :movieBigPicture2, :movieBigPicture3, :publishYear , :MovieStatus)";
+                $query = "INSERT INTO `movie`(`MovieName`, `main_Cat_ID`, `MovieLocation`, `LengthByMin`, `MoviePoster`, `MovieBigPicture1`, `MovieBigPicture2`, `MovieBigPicture3`, `PublishYear` , `MovieStatus`) VALUES (:name, :Catagory,  :movieLocation, :movieLength, :MoviePoster, :movieBigPicture1, :movieBigPicture2, :movieBigPicture3, :publishYear , :MovieStatus)";
                 $stmt = $pdoConnection->prepare($query);
                 $stmt->bindParam(':name', ($movie->name), PDO::PARAM_STR);
                 $stmt->bindParam(':Catagory', $movie->Catagory, PDO::PARAM_INT);
-                $stmt->bindParam(':publishDate', $movie->publishDate, PDO::PARAM_STR);
                 $stmt->bindParam(':movieLocation', $movie->movieLocation, PDO::PARAM_STR);
                 $stmt->bindParam(':movieLength', $movie->movieLength, PDO::PARAM_INT);
                 $stmt->bindParam(':MoviePoster', $movie->MoviePoster, PDO::PARAM_STR);
