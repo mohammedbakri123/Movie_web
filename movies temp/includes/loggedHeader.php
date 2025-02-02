@@ -2,6 +2,7 @@
 include 'autoload.php';
 use BusinessLayer\clsUser;
 //session_start();
+
 $user = clsUser::FindByNameAndPassword($_SESSION['username'], $_SESSION['password']);
 ?>
 
@@ -34,7 +35,7 @@ $user = clsUser::FindByNameAndPassword($_SESSION['username'], $_SESSION['passwor
         <ul class="navbar">
             <li> <a href="#home" class="home-active">Home</a></li>
             <li> <a href="#Movies">Movies</a></li>
-            <li> <a href="#coming">Coming</a></li>
+            <li> <a href="account_settings.php">Account</a></li>
             <li> <a href="search.php">Search</a></li>
             <?php if ($user->role == 1) { ?>
                 <li> <a href="admin/index.php">Admin</a></li>

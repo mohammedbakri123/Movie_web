@@ -1,6 +1,7 @@
 <?php
 session_start();
-if (isset($_SESSION['username']) && $_SESSION['password']) {
+if (isset($_SESSION['username']) && isset($_SESSION['password'])) {
+    
     include('includes/loggedHeader.php');
 } else {
     include('includes/header.php');
@@ -66,15 +67,15 @@ use BusinessLayer\clsCatagory;
         <?php $moviesThisWeek = clsMovie::GetAllMoviesInStatus(1);
         foreach ($moviesThisWeek as $movie) {
             ?>
-            <div class="box">
-                <div class="box-img">
-                    <a href="play.php?MovieId=<?php echo $movie['MovieID'] ?>"><img
-                            src="<?php echo $movie['MoviePoster'] ?>" alt=""></a>
-                </div>
-                <h3><?php echo $movie['MovieName'] ?></h3>
-                <span><?php echo $movie['LengthByMin'] ?> |
-                    <?php echo clsCatagory::GetCatagoryById($movie['main_Cat_ID']); ?></span>
+        <div class="box">
+            <div class="box-img">
+                <a href="play.php?MovieId=<?php echo $movie['MovieID'] ?>"><img
+                        src="<?php echo $movie['MoviePoster'] ?>" alt=""></a>
             </div>
+            <h3><?php echo $movie['MovieName'] ?></h3>
+            <span><?php echo $movie['LengthByMin'] ?> |
+                <?php echo clsCatagory::GetCatagoryById($movie['main_Cat_ID']); ?></span>
+        </div>
         <?php } ?>
     </div>
 </section>
@@ -89,15 +90,15 @@ use BusinessLayer\clsCatagory;
             <!-- box 1 -->
             <?php $moviesComming = clsMovie::GetAllMoviesInStatus(2);
             foreach ($moviesComming as $movie) { ?>
-                <div class="swiper-slide box">
-                    <div class="box-img">
-                        <a href="play.php?MovieId=<?php echo $movie['MovieID'] ?>"><img
-                                src="<?php echo $movie['MoviePoster'] ?>" alt=""></a>
-                    </div>
-                    <h3><?php echo $movie['MovieName'] ?></h3>
-                    <span><?php echo $movie['LengthByMin'] ?> |
-                        <?php echo clsCatagory::GetCatagoryById($movie['main_Cat_ID']); ?></span>
+            <div class="swiper-slide box">
+                <div class="box-img">
+                    <a href="play.php?MovieId=<?php echo $movie['MovieID'] ?>"><img
+                            src="<?php echo $movie['MoviePoster'] ?>" alt=""></a>
                 </div>
+                <h3><?php echo $movie['MovieName'] ?></h3>
+                <span><?php echo $movie['LengthByMin'] ?> |
+                    <?php echo clsCatagory::GetCatagoryById($movie['main_Cat_ID']); ?></span>
+            </div>
             <?php } ?>
             <!-- box 2 -->
         </div>

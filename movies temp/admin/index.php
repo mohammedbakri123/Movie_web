@@ -1,3 +1,31 @@
+<?php
+include '../autoload.php';
+session_start();
+
+use BusinessLayer\clsCatagory;
+use BusinessLayer\clsMovie;
+use BusinessLayer\clsUser;
+$Crruntuser = new clsUser();
+if (isset($_SESSION['username']) && $_SESSION['password']) {
+    $Crruntuser = clsUser::FindByNameAndPassword($_SESSION['username'], $_SESSION['password']);
+    if ($Crruntuser->role != 1) {
+        header('Location: ../sign in .php?logout=true');
+        exit();
+    }
+}
+else if(!isset($_SESSION['username']) || !isset($_SESSION['password'])){
+    header('Location: ../sign in .php?logout=true');
+    exit();
+}
+
+
+$allCatagorise = clsCatagory::getAllCategories();
+$allMovies = clsMovie::getAllMovies();
+$allUsers;
+clsUser::GetAllUsers($allUsers);
+
+
+?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 
@@ -46,9 +74,7 @@
                     <li>
                         <a href="users.php"><i class="fa fa-users"></i> Users</a>
                     </li>
-                    <li>
-                        <a href="categories.php"><i class="fa fa-tasks"></i> Categories</a>
-                    </li>
+
                     <li>
                         <a href="Movies.php"><i class="fa fa-bars"></i> Movies</a>
                     </li>
@@ -73,7 +99,7 @@
                                 <i class="fa fa-users"></i>
                             </span>
                             <div class="text-box">
-                                <p class="main-text">10 Users</p>
+                                <p class="main-text"><?php echo count($allUsers) . " User" ?></p>
                                 <br>
                                 <br>
                             </div>
@@ -87,25 +113,25 @@
                         </div>
                     </div>
                     <!-- Categories Panel -->
-                    <div class="col-md-4 col-sm-6 col-xs-6">
+                    <!-- <div class="col-md-4 col-sm-6 col-xs-6">
                         <div class="panel panel-back noti-box">
                             <span class="icon-box bg-color-green set-icon">
                                 <i class="fa fa-tasks"></i>
-                            </span>
-                            <div class="text-box">
+                            </span> -->
+                    <!-- <div class="text-box">
                                 <p class="main-text">5 Categories</p>
                                 <br>
                                 <br>
-                            </div>
-                            <a href="categories.php">
+                            </div> -->
+                    <!-- <a href="categories.php">
                                 <div class="panel-footer" style="color: #00ce6f;">
                                     <span class="pull-left">View Details</span>
                                     <span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span>
                                     <div class="clearfix"></div>
                                 </div>
-                            </a>
-                        </div>
-                    </div>
+                            </a> -->
+                    <!-- </div>
+            </div> -->
                     <!-- Products Panel -->
                     <div class="col-md-4 col-sm-6 col-xs-6">
                         <div class="panel panel-back noti-box">
@@ -113,7 +139,7 @@
                                 <i class="fa fa-bars"></i>
                             </span>
                             <div class="text-box">
-                                <p class="main-text">20 Products</p>
+                                <p class="main-text"><?php echo count($allMovies) . " Movie" ?></p>
                                 <br>
                                 <br>
                             </div>

@@ -2,6 +2,20 @@
 include '../autoload.php';
 use BusinessLayer\clsCatagory;
 use BusinessLayer\clsMovie;
+use BusinessLayer\clsUser;
+session_start();
+$Crruntuser = new clsUser();
+if (isset($_SESSION['username']) && $_SESSION['password']) {
+    $Crruntuser = clsUser::FindByNameAndPassword($_SESSION['username'], $_SESSION['password']);
+    if ($Crruntuser->role != 1) {
+        header('Location: ../sign in .php?logout=true');
+        exit();
+    }
+}
+else if(!isset($_SESSION['username']) || !isset($_SESSION['password'])){
+    header('Location: ../sign in .php?logout=true');
+    exit();
+}
 
 function encryptParam($value)
 {
@@ -72,9 +86,6 @@ function decryptParam($value)
                     </li>
                     <li>
                         <a href="users.php"><i class="fa fa-users"></i> Users</a>
-                    </li>
-                    <li>
-                        <a href="categories.php"><i class="fa fa-tasks"></i> Categories</a>
                     </li>
                     <li>
                         <a href="Movies.php"><i class="fa fa-bars"></i> Movies</a>
